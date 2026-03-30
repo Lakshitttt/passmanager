@@ -6,9 +6,7 @@ import os
 import random
 import string
 
-# =========================
-# DATABASE CONNECTION
-# =========================
+#databaseconnecting
 db = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -18,16 +16,12 @@ db = mysql.connector.connect(
 
 cursor = db.cursor()
 
-# =========================
-# KEY GENERATION
-# =========================
+#keygeneratingfor further use
 def generate_key(master_password):
     key = hashlib.sha256(master_password.encode()).digest()
     return base64.urlsafe_b64encode(key)
 
-# =========================
-# PASSWORD STRENGTH CHECK
-# =========================
+#pass strengthchecking
 def check_strength(password):
     score = 0
     
@@ -49,16 +43,12 @@ def check_strength(password):
     else:
         return "Strong"
 
-# =========================
-# PASSWORD GENERATOR
-# =========================
+#passgenerator
 def generate_password(length=12):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(chars) for _ in range(length))
 
-# =========================
-# ADD PASSWORD
-# =========================
+#addpass
 def add_password(cipher):
     site = input("Enter site: ")
     username = input("Enter username: ")
@@ -83,9 +73,7 @@ def add_password(cipher):
     
     print("✅ Stored successfully")
 
-# =========================
-# VIEW PASSWORDS
-# =========================
+#viewpass
 def view_passwords(cipher):
     cursor.execute("SELECT * FROM vault")
     records = cursor.fetchall()
@@ -102,19 +90,14 @@ def view_passwords(cipher):
         print(f"Username: {username}")
         print(f"Password: {password}")
         print("-" * 30)
-
-# =========================
-# DELETE PASSWORD
-# =========================
+#deletepass
 def delete_password():
     id = input("Enter ID to delete: ")
     cursor.execute("DELETE FROM vault WHERE id=%s", (id,))
     db.commit()
     print("🗑️ Deleted successfully")
 
-# =========================
-# UPDATE PASSWORD
-# =========================
+#changepass
 def update_password(cipher):
     id = input("Enter ID to update: ")
     
@@ -133,9 +116,7 @@ def update_password(cipher):
     
     print("✏️ Updated successfully")
 
-# =========================
-# MAIN PROGRAM
-# =========================
+#main run
 def main():
     print("🔐 PASSWORD MANAGER")
     
@@ -165,8 +146,6 @@ def main():
         else:
             print("Invalid choice")
 
-# =========================
-# RUN
-# =========================
+#finalrun command
 if __name__ == "__main__":
     main()
