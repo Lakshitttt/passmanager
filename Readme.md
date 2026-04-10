@@ -53,7 +53,7 @@ CREATE TABLE vault (
 Clone the repository:
 
 ```bash
-git clone https://github.com/lakshiiitttt/password-manager.git
+git clone https://github.com/lakshitttt/password-manager.git
 cd password-manager
 ```
 
