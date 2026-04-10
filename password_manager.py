@@ -1,20 +1,34 @@
 import mysql.connector
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
+import sys
 import base64
 import hashlib
 import os
-import random
+import secrets          
 import string
+import getpass         
 
 #databaseconnecting
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="root123",
-    database="password_manager"
-)
-
-cursor = db.cursor()
+try:
+    db = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="root123",
+        database="password_manager"
+    )
+    cursor = db.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS vault (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        site BLOB,
+        username BLOB,
+        password BLOB
+    )
+    """)
+    db.commit()
+except mysql.connector.Error as err:
+    print(f"Database Setup Error: {err}")
+    sys.exit(1)
 
 #keygeneratingfor further use
 def generate_key(master_password):
@@ -23,10 +37,11 @@ def generate_key(master_password):
 
 #pass strengthchecking
 def check_strength(password):
-    score = 0
+    if len(password) < 8:
+        return "Weak"
+        
+    score = 1
     
-    if len(password) >= 8:
-        score += 1
     if any(c.isupper() for c in password):
         score += 1
     if any(c.islower() for c in password):
@@ -46,7 +61,7 @@ def check_strength(password):
 #passgenerator
 def generate_password(length=12):
     chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(length))
+    return ''.join(secrets.choice(chars) for _ in range(length))  # CHANGED: was random.choice
 
 #addpass
 def add_password(cipher):
@@ -71,36 +86,55 @@ def add_password(cipher):
     cursor.execute(query, (enc_site, enc_user, enc_pass))
     db.commit()
     
-    print("✅ Stored successfully")
+    print("Stored successfully")
 
 #viewpass
 def view_passwords(cipher):
     cursor.execute("SELECT * FROM vault")
     records = cursor.fetchall()
     
+    if not records:
+        print("\nVault is empty.\n")
+        return
+        
     print("\nStored Passwords:\n")
     
     for row in records:
-        site = cipher.decrypt(row[1]).decode()
-        username = cipher.decrypt(row[2]).decode()
-        password = cipher.decrypt(row[3]).decode()
-        
-        print(f"ID: {row[0]}")
-        print(f"Site: {site}")
-        print(f"Username: {username}")
-        print(f"Password: {password}")
-        print("-" * 30)
+        try:
+            site = cipher.decrypt(row[1]).decode()
+            username = cipher.decrypt(row[2]).decode()
+            password = cipher.decrypt(row[3]).decode()
+            
+            print(f"ID: {row[0]}")
+            print(f"Site: {site}")
+            print(f"Username: {username}")
+            print(f"Password: {password}")
+            print(" " * 30)
+        except InvalidToken:
+            print(f"ID: {row[0]}   Error: Decryption failed (Incorrect Master Password or Corrupted Data)")
+            print(" " * 30)
+
 #deletepass
 def delete_password():
     id = input("Enter ID to delete: ")
+    if not id.isdigit():
+        print("Invalid ID format. Must be a number.")
+        return
     cursor.execute("DELETE FROM vault WHERE id=%s", (id,))
     db.commit()
-    print("🗑️ Deleted successfully")
+    
+    if cursor.rowcount > 0:
+        print("Deleted successfully")
+    else:
+        print("ID not found")
 
 #changepass
 def update_password(cipher):
     id = input("Enter ID to update: ")
-    
+    if not id.isdigit():
+        print("Invalid ID format. Must be a number.")
+        return
+        
     new_password = input("Enter new password (or type 'gen'): ")
     
     if new_password == "gen":
@@ -114,16 +148,32 @@ def update_password(cipher):
     cursor.execute("UPDATE vault SET password=%s WHERE id=%s", (enc_pass, id))
     db.commit()
     
-    print("✏️ Updated successfully")
+    if cursor.rowcount > 0:
+        print("Updated successfully")
+    else:
+        print("ID not found")
 
 #main run
 def main():
-    print("🔐 PASSWORD MANAGER")
+    print("PASSWORD MANAGER")
     
-    master_password = input("Enter master password: ")
+    master_password = getpass.getpass("Enter master password: ")  # CHANGED: was input()
     key = generate_key(master_password)
     cipher = Fernet(key)
     
+    # Master password validation check by trying to decrypt an existing item
+    try:
+        cursor.execute("SELECT site FROM vault LIMIT 1")
+        test_row = cursor.fetchone()
+        if test_row:
+            try:
+                cipher.decrypt(test_row[0])
+            except InvalidToken:
+                print("Incorrect Master Password! Exiting to prevent database corruption.")
+                sys.exit(1)
+    except Exception:
+        pass # Ignore table not found initially
+        
     while True:
         print("\n1. Add Password")
         print("2. View Passwords")
