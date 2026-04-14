@@ -118,6 +118,10 @@ Password strength is evaluated based on:
 
 Scores are rated as **Weak**, **Moderate**, or **Strong**.
 
+"Uses AES-256 encryption via the Fernet symmetric encryption scheme"
+"Master password is hashed using SHA-256 before key derivation"
+"Passwords are never stored in plaintext"
+
 ---
 
 ## Project Structure
